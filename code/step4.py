@@ -1,7 +1,11 @@
+'''
+Step 4: Training a RNN. Introduces the new functionality for building an RNN along
+with a few augmentation tools like Nucleus Sampling, Temperature, Adagrad, and Adam.
+'''
 import numpy as np
-import numpy.matlib
 import matplotlib.pyplot as plt
 
+'''Loads in text from file'''
 def LoadText(filename):
     with open(filename, 'rb') as fo:
         byte_contents = fo.read()
@@ -9,10 +13,11 @@ def LoadText(filename):
         unique_characters = np.unique(all_characters)
     return all_characters, unique_characters
 
+''' Standard definition of the softmax function '''
 def softmax(x, T=1):
-    """ Standard definition of the softmax function (with optional temperature)"""
     return np.exp(x/T) / np.sum(np.exp(x/T), axis=0)
 
+'''Perform nucleus sampling to stabilise output'''
 def NucleusSampling(x, theta):
     x_sorted = -np.sort(-x)
     
@@ -28,6 +33,7 @@ def NucleusSampling(x, theta):
     
     return x_out
 
+'''Get a random new X'''
 def GetRandomNextX(RNN, p):
     cp = np.cumsum(p)
     a = np.random.uniform()
@@ -35,7 +41,8 @@ def GetRandomNextX(RNN, p):
     new_x = np.zeros(p.shape)
     new_x[indices[0]] = 1
     return new_x
-    
+
+'''Generates new text'''
 def CreateNewText(RNN, h_0, x_0, n, mode="standard"):
     W = RNN.get("W")
     U = RNN.get("U")
@@ -73,8 +80,8 @@ def CreateNewText(RNN, h_0, x_0, n, mode="standard"):
     text = "".join([ind_to_char[x] for x in text_flat])
     return text
 
+'''Calculates the Forward pass values needed for gradients'''
 def ForwardPass(RNN, X, Y, h_0, return_loss=False):
-    '''Calculates the Forward pass values needed for gradients'''
     W = RNN.get("W")
     U = RNN.get("U")
     V = RNN.get("V")
@@ -112,8 +119,8 @@ def ForwardPass(RNN, X, Y, h_0, return_loss=False):
     
     return vectors
 
+'''Computes the loss of the network on the given labeled data'''
 def ComputeLoss(RNN, X, Y, h_0):
-    '''Computes the loss of the network on the given labeled data'''
     vectors = ForwardPass(RNN, X, Y, h_0)
     n = X.shape[1]
     p = np.transpose(vectors.get("p"))
@@ -121,8 +128,9 @@ def ComputeLoss(RNN, X, Y, h_0):
     loss_term = - sum(loss_term) / n
     return loss_term
     
+    
+'''Calculates gradients using backprop for SGD'''
 def ComputeGradients(RNN, X, Y, h_0, get_last_h=False):
-    '''Calculates gradients using backprop for SGD'''
     V = RNN.get("V")
     W = RNN.get("W")
     T = X.shape[1]
@@ -201,8 +209,8 @@ def ComputeGradients(RNN, X, Y, h_0, get_last_h=False):
         return grads, loss, h[:,T]
     return grads, loss
 
+'''Numerical gradient calculation to ensure correct analytical solution'''
 def ComputeGradientsNum(RNN, X, Y, h_0):
-    '''Numerical gradient calculation to ensure correct analytical solution'''
     h = 1e-4
     grad_names = ["c", "V", "b", "W", "U"]
     num_grads = {}
@@ -235,8 +243,8 @@ def ComputeGradientsNum(RNN, X, Y, h_0):
         
     return num_grads 
 
+'''Get training data for an iteration'''
 def GetDataSegment(RNN, start):
-    '''Get training data for an iteration'''
     K = RNN.get("K")
     all_data = RNN.get("all_data")
     length = RNN.get("seq_length")
@@ -256,6 +264,7 @@ def GetDataSegment(RNN, start):
     
     return X_hot, Y_hot
 
+'''Perform Adagrad learning (all data sequentially)'''
 def AdaGrad(contents, RNN, n_epochs):
     
     book_length = len(contents)
@@ -327,6 +336,7 @@ def AdaGrad(contents, RNN, n_epochs):
     big_text = CreateNewText(RNN, h_last, X[:,0], 1000)
     return texts, losses, big_text
 
+'''Perform Adagrad with chunks from the data in randomised order'''
 def AdaGradRandomChunks(contents, RNN, n_epochs, num_of_chunks=100):
     
     book_length = len(contents)
@@ -402,6 +412,7 @@ def AdaGradRandomChunks(contents, RNN, n_epochs, num_of_chunks=100):
     big_text = CreateNewText(RNN, h_last, X[:,0], 1000)
     return texts, losses, big_text
 
+'''Perform Adam learning with sequential data'''
 def Adam(contents, RNN, n_epochs):
     book_length = len(contents)
     m_param = RNN.get("m")
@@ -488,6 +499,7 @@ def Adam(contents, RNN, n_epochs):
     big_text = CreateNewText(RNN, h_last, X[:,0], 1000)
     return texts, losses, big_text
 
+'''Perform Adam with chunks of data in randomised order'''
 def AdamRandomChunks(contents, RNN, n_epochs, num_of_chunks=100):
     
     book_length = len(contents)
@@ -584,6 +596,7 @@ def AdamRandomChunks(contents, RNN, n_epochs, num_of_chunks=100):
     RNN["h_last"] = h_last
     return texts, losses, big_text
 
+'''Perform Adam with fully randomised data every time (no guarantee of using all data)'''
 def AdamFullRandom(contents, RNN, n_epochs):
     book_length = len(contents)
     m_param = RNN.get("m")
@@ -671,6 +684,7 @@ def AdamFullRandom(contents, RNN, n_epochs):
     big_text = CreateNewText(RNN, h_last, X[:,0], 1000)
     return texts, losses, big_text
 
+'''Validate and return average loss'''
 def Validation(contents, RNN):
     book_length = len(contents)
     m = RNN.get("m")
@@ -696,10 +710,12 @@ def Validation(contents, RNN):
        
     return total_loss/t # Returns the average loss
 
+'''Main function for full training of RNN'''
 def main():
-    '''Load full training text from file'''
-    contents, unique_chars = LoadText('C:/KTH/Deep Learning/goblet_book.txt')
     
+    '''Load full training text from file'''
+    contents, unique_chars = LoadText('C:/KTH/numpy-neural-networks/goblet_book.txt')
+
     validating = False
     if(validating):
         validation_contents = contents[:10000]
@@ -751,17 +767,16 @@ def main():
     
     
     
-
+# %% Cell 1: Train the RNN
 RNN, snippet_list, losses, passage, contents = main()
-#%%
-#'''
+
+# %% Cell 2: Generate a passage of text along with snippets from various stages of learning
 print(f'\n#######################\n{passage}\n#######################')
 
 for i, snip in enumerate(snippet_list):
     print(f'Snippet {i} from after {10000*i} steps:\n{snip}\n')
-#'''
 
-#%%
+#%% Cell 3: Plot loss change during learning
 x = [500*i for i in range(len(losses))]
 
 plt.plot(x, losses)
@@ -771,19 +786,19 @@ plt.xlabel("Iteration")
 plt.ylabel("Smooth loss")
 plt.show()
 
-#%%
+#%% Cell 4a: Sample using some different methods
 '''Sample some new text with different methods'''
 X, Y = GetDataSegment(RNN, 214)
 x_0 = X[:,0]
 #h_0 = RNN.get("h_last")
 h_0 = np.zeros(RNN.get("m"))
 
-#%%
+#%% Cell 4b: Using Temperature
 RNN["temp"] = 0.7
 text = CreateNewText(RNN, h_0, x_0, 800, "temp")
 print(text)
 
-#%%
+#%% Cell 4c: Using Nucleus Sampling
 RNN["theta"] = 0.8
 text = CreateNewText(RNN, h_0, x_0, 800, "nucleus")
 print(text)
@@ -791,10 +806,8 @@ print(text)
 
 
 
+#%% Cell 5: Comparing analytical and numerical gradient.
 
-
-
-'''
 params, gradients, numerical_gradients = main()
 for string in gradients.keys():
     print("")
@@ -815,7 +828,3 @@ U_diff = gradients.get("U") - numerical_gradients.get("U")
 U_ratio = np.divide(gradients.get("U"), numerical_gradients.get("U"))
 
 print("\n")
-#'''
-
-
-
