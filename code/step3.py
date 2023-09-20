@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 ''' Loads datasets into numpy arrays'''
 def LoadBatch(filename):
     import pickle
-    with open('C:/KTH/Deep Learning/Datasets/'+filename, 'rb') as fo:
+    with open('C:/KTH/numpy-neural-networks/code/Datasets/'+filename, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     X = np.array(dict[b'data'])
     y = np.array(dict[b'labels'])
