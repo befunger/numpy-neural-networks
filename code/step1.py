@@ -1,10 +1,12 @@
+'''Step 1 in learning to design neural networks from scratch. Introduces many essential functions for neural networks like '''
+
 import numpy as np
 import numpy.matlib 
 import matplotlib.pyplot as plt
 
+''' Loads datasets into numpy arrays'''
 def LoadBatch(filename):
     import pickle
-    ''' Copied from the dataset website '''
     with open('Datasets/'+filename, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     X = np.array(dict[b'data'])
@@ -19,9 +21,8 @@ def LoadBatch(filename):
         
     return X, Y, y
 
+'''Display the image for each label in W'''
 def montage(W):
-    
-	''' Display the image for each label in W '''
 	import matplotlib.pyplot as plt
 	fig, ax = plt.subplots(2,5)
 	for i in range(2):
@@ -34,16 +35,20 @@ def montage(W):
 			ax[i][j].axis('off')
 	plt.show()
 
+''' Standard definition of the softmax function '''
 def softmax(x):
-    ''' Standard definition of the softmax function '''
     return np.exp(x) / np.sum(np.exp(x), axis=0)
 
+'''Standard definition of the sigmoid function'''
+def sigmoid(x):
+    return np.exp(x) / (np.exp(x) + 1) 
+
+'''Returns the probabilities p of each label'''
 def EvaluateClassifier(X, W, b):
-    '''Returns the probabilities p of each label'''
     return softmax(np.matmul(W,X) + b)
 
+'''Calculates the cost function for a batch of predictions'''
 def ComputeCost(X, Y, W, b, lam):
-    '''Calculates the cost function for a batch of predictions'''
     P = EvaluateClassifier(X, W, b)
     N = np.size(P,1)
     loss_term = [np.dot(Y[:,i], np.log(P[:,i])) for i in range(N)]
@@ -51,14 +56,15 @@ def ComputeCost(X, Y, W, b, lam):
     reg_term = np.sum(np.square(W)) * lam
     return loss_term + reg_term, loss_term    
 
+'''Computes the accuracy of a set of predictions (between 0 and 1)'''
 def ComputeAccuracy(X, y, W, b):
     p = EvaluateClassifier(X, W, b)
     guesses = np.argmax(p, 0)
     corrects = np.sum((y==guesses).astype(float))
     return corrects / np.size(y, 0)
 
+'''Analytically computes gradients of the parameters W and b using backprop'''
 def ComputeGradients(X, Y, W, b, lam):
-    '''Computes gradients of the parameters W and b'''
     nb = np.size(X, 1)
     P_batch = softmax(np.matmul(W, X) + np.matmul(b, np.ones((1, nb))))
     G_batch = - (Y - P_batch)
@@ -70,7 +76,7 @@ def ComputeGradients(X, Y, W, b, lam):
     
     return dJ_dW, dJ_db
 
-''' Numerically computers gradient to verify the analytic implementation. Converted from Matlab code.'''
+''' Numerically computers gradient to verify the analytical ComputeGradients() implementation. Converted from Matlab code.'''
 def ComputeGradsNum(X, Y, W, b, lamda, h):
 	no 	= 	W.shape[0]
 	d 	= 	X.shape[0]
@@ -128,9 +134,8 @@ def ComputeGradsNumSlow(X, Y, W, b, lamda, h):
 
 	return grad_W, grad_b
 
-def InitialiseParameters():
-    use_xavier = False
-
+'''Initialises W and b before learning (Either random or Xavier)'''
+def InitialiseParameters(use_xavier = False):
     if(use_xavier):
         W = np.random.randn(10, 3072) / np.sqrt(3072)    
     else:
@@ -139,6 +144,7 @@ def InitialiseParameters():
     b = 0.01 * np.random.randn(10, 1)
     return W, b
 
+'''Performs a learning episode using mini batches'''
 def MiniBatchGD(X, Y, W, b, lam, n_batch, eta, n_epochs, decay=False, bonus_loss=False):
     #if(n_batch * n_epochs > np.size(X, 1)):
     #    print("Not enough data!")
@@ -182,8 +188,8 @@ def MiniBatchGD(X, Y, W, b, lam, n_batch, eta, n_epochs, decay=False, bonus_loss
         val_loss.append(vloss)
     return W, b, res
 
+'''Performs a grid search for λ, η, and batch size and returns a matrix of test accuracy across the attempted values.'''
 def GridSearch(X, Y, test_X, test_Y, W, b, n_epochs):
-    '''Performs a grid search for λ, η, and batch size and returns a matrix of test accuracy across the attempted values.'''
     lam_vec = np.array([0, 0.1, 0.3, 0.6, 1])
     eta_vec = np.array([0.0001, 0.0005, 0.001, 0.005, 0.01])
     batch_size_vec = np.array([10, 30, 100, 200, 500])
@@ -197,13 +203,9 @@ def GridSearch(X, Y, test_X, test_Y, W, b, n_epochs):
                 print(f"Test acc: {test_acc}% with λ = {lam}, η = {eta}, batch size {n_batch}")
                 accs[i][j][k] = test_acc
     return accs
-          
-def sigmoid(x):
-    '''Standard definition of the sigmoid function'''
-    return np.exp(x) / (np.exp(x) + 1) 
 
+'''Alternative cost function (sigmoid instead of softmax)'''
 def ComputeBonusCost(X, Y, W, b, lam):
-    '''Calculates the cost function for a batch of predictions'''
     P = sigmoid(np.matmul(W,X) + b)
     N = np.size(P,1)
     loss_term = [np.dot(Y[:,i], np.log(P[:,i])) + np.dot((1 - Y[:,i]), np.log(1 - P[:,i])) for i in range(N)]
@@ -211,7 +213,7 @@ def ComputeBonusCost(X, Y, W, b, lam):
     reg_term = np.sum(np.square(W)) * lam
     return loss_term + reg_term, loss_term    
     
-    
+'''Alternative gradient calculation (sigmoid instead of softmax)'''
 def ComputeBonusGradients(X, Y, W, b, lam):
     nb = np.size(X, 1)
     P_batch = sigmoid(np.matmul(W, X) + np.matmul(b, np.ones((1, nb))))
@@ -223,14 +225,15 @@ def ComputeBonusGradients(X, Y, W, b, lam):
     dJ_db = np.matmul(G_batch, np.ones((nb, 1))) / nb
     
     return dJ_dW, dJ_db
-         
+
+'''Alternative accuracy (sigmoid instead of softmax)'''
 def ComputeBonusAccuracy(X, y, W, b):
     p = sigmoid(np.matmul(W,X) + b)
     guesses = np.argmax(p, 0)
     corrects = np.sum((y==guesses).astype(float))
     return corrects / np.size(y, 0)
  
-# %%
+# %% Cell 1: Fetch data and preprocess
 '''Fetch the necessary data and labels (y = labels, Y = one hot labels)'''
 big_batch = False
 
@@ -256,7 +259,7 @@ else:
     test_X, test_Y, test_y = LoadBatch("test_batch")
 
 
-'''Normalise all data based on training'''
+'''Normalise all data based on training data'''
 
 train_mean = np.mean(train_X, 1)
 train_std = np.std(train_X, 1)
@@ -277,7 +280,7 @@ std = np.transpose(np.matlib.repmat(train_std, np.matlib.size(test_X, 1), 1))
 
 test_X = np.divide(np.subtract(test_X, mean), std)
 
-# %%
+# %% Cell2: Initialise weights and biases, evaluate basic (should be ~10% by random chance, as dataset has 10 labels)
 '''Initialise W and b as N(0, 0.01)''' 
 W, b = InitialiseParameters()
 
@@ -291,7 +294,7 @@ cost = ComputeCost(batch_X, batch_Y, W, b, lam)
 print(f"Initial accuracy: {100*ComputeAccuracy(batch_X, batch_y, W, b)}%")
 
 
-# %%
+# %% Cell 3: Compare analytical gradient to numerical implmenetation to confirm correctness
 '''Compare analytical gradient to numerical'''
 
 grad_W, grad_b = ComputeBonusGradients(batch_X, batch_Y, W, b, lam)
@@ -309,9 +312,8 @@ denom2 = np.max((0.0001, np.abs(np.sum(grad_b)) + np.abs(np.sum(num_grad_b))))
 print(f"Relative error in b gradient: {enum2/denom2}")
 
 
-# %%
-'''Testing out new loss function'''
-'''
+# %% Cell 4: Testing new loss function
+
 P = sigmoid(np.matmul(W,train_X) + b)
 N = np.size(P,1)
 term1 = (train_Y[:,1])
@@ -326,11 +328,10 @@ loss_term_pre = [np.dot(train_Y[:,i], np.log(P[:,i])) + np.dot((1 - train_Y[:,i]
 loss_term = - sum(loss_term_pre) / (10*N)
 reg_term = np.sum(np.square(W)) * lam
 print(loss_term)
-'''
+
 #print(ComputeBonusCost(train_X, train_Y, W, b, lam))
 
-# %%
-'''Perform a mini batch GD'''
+# %% Cell 5: Perform a Mini Batch Gradient Descent
 bonus_loss = True
 grid_search = False
 decay = False       
@@ -376,9 +377,7 @@ else:
     
     montage(W_star)
 
-#%%
-
-'''Making histograms of correct and incorrect guess probabilities'''
+#%% Cell 6: Making histograms of correct and incorrect guess probabilities
 
 
 if(bonus_loss):
