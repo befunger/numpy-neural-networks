@@ -1,10 +1,14 @@
+'''
+Step 3: Extends code for neural networks of arbitrary depth by generalising the code.
+Introduces batch normalisation to counteract vanishing gradient.
+'''
 import numpy as np
 import numpy.matlib
 import matplotlib.pyplot as plt
 
+''' Loads datasets into numpy arrays'''
 def LoadBatch(filename):
     import pickle
-    """ Copied from the dataset website """
     with open('C:/KTH/Deep Learning/Datasets/'+filename, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     X = np.array(dict[b'data'])
@@ -19,8 +23,8 @@ def LoadBatch(filename):
     
     return X, Y, y
 
+'''Fetch the necessary data and labels (y = labels, Y = one hot labels)'''
 def GetAllData(big_batch=False):
-    '''Fetch the necessary data and labels (y = labels, Y = one hot labels)'''
     if(big_batch):
             train_X1, train_Y1, train_y1 = LoadBatch("data_batch_1")
             train_X2, train_Y2, train_y2 = LoadBatch("data_batch_2")
@@ -60,10 +64,8 @@ def GetAllData(big_batch=False):
     
     return train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y
 
-
+'''Display the image for each label in W'''
 def montage(W):
-    
-    """ Display the image for each label in W """
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(2,5)
     for i in range(2):
@@ -75,26 +77,12 @@ def montage(W):
             ax[i][j].set_title("y="+str(5*i+j + 1))
             ax[i][j].axis('off')
     plt.show()
-    
-def montage_images(W):
-    
-    """ Display the image for each label in W """
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(2,5)
-    for i in range(2):
-        for j in range(5):
-            im  = W[:,i*5+j].reshape(32,32,3, order='F')
-            sim = (im-np.min(im[:]))/(np.max(im[:])-np.min(im[:]))
-            sim = sim.transpose(1,0,2)
-            ax[i][j].imshow(sim, interpolation='nearest')
-            ax[i][j].set_title("y="+str(5*i+j + 1))
-            ax[i][j].axis('off')
-    plt.show()    
 
+''' Standard definition of the softmax function '''
 def softmax(x):
-    """ Standard definition of the softmax function """
     return np.exp(x) / np.sum(np.exp(x), axis=0)
 
+'''Performs batch normalisation'''
 def BatchNormalise(S, provided=False, mu=None, var=None):
     if not provided:
         mu = np.mean(S, 1)[:, None]
@@ -104,9 +92,8 @@ def BatchNormalise(S, provided=False, mu=None, var=None):
     S_norm = np.divide(np.subtract(S, mu), std)
     return S_norm, mu, var
 
-
+'''Returns activations h and probabilities p of each'''
 def EvaluateClassifier(X, parameters, all_scores = False, stat_params=None):
-    '''Returns activations h and probabilities p of each'''
     Ws = parameters.get("W")
     bs = parameters.get("b")
     gammas = parameters.get("gamma")
@@ -148,8 +135,8 @@ def EvaluateClassifier(X, parameters, all_scores = False, stat_params=None):
         return p_i, scores
     return p_i
 
+'''Calculates the cost function for a batch of predictions'''
 def ComputeCost(X, Y, parameters, lam, stats=None):
-    '''Calculates the cost function for a batch of predictions'''
     Ws = parameters.get("W")
     layers = (int) (len(Ws))
     P = EvaluateClassifier(X, parameters, False, stats)
@@ -162,12 +149,14 @@ def ComputeCost(X, Y, parameters, lam, stats=None):
     reg_term = lam * reg_term
     return loss_term + reg_term, loss_term    
 
+'''Computes accuracy of network against ground truth (between 0 and 1)'''
 def ComputeAccuracy(X, y, parameters, stats=None):
     p = EvaluateClassifier(X, parameters, False, stats)
     guesses = np.argmax(p, 0)
     corrects = np.sum((y==guesses).astype(float))
     return corrects / np.size(y, 0)
 
+'''Backpass for batch normalisation'''
 def BatchNormBackPass(G, s, mu, v, nb):
     v_e = v + 1e-15
     v_e_sqrt = np.sqrt(v_e)
@@ -194,8 +183,8 @@ def BatchNormBackPass(G, s, mu, v, nb):
     
     return new_G
 
+'''Computes gradients of the parameters W_i, b_i'''
 def ComputeGradients(X, Y, parameters, lam):
-    '''Computes gradients of the parameters W_i, b_i'''
     Ws = parameters.get("W")
     gammas = parameters.get("gamma")
     layers = (int) (len(Ws))
@@ -265,8 +254,8 @@ def ComputeGradients(X, Y, parameters, lam):
                   "mean" : np.copy(mu), "variance" : np.copy(v)}
     return gradients
 
+'''Numerical gradient estimation (Very slow for large data)'''
 def ComputeGradsNumSlow(X, Y, parameters, lamda, h):
-    '''Numerical gradient estimation (Very slow for large data)'''
     Ws = parameters.get("W")
     bs = parameters.get("b")
     gammas = parameters.get("gamma")
@@ -336,8 +325,8 @@ def ComputeGradsNumSlow(X, Y, parameters, lamda, h):
     numerical_grads["beta"] = beta_gradients
     return numerical_grads
 
+'''Initialise weights and biases (He, Xavier, or random initialisation)'''
 def InitialiseParameters(dims, mode="Standard"):
-    '''Initialise weights and biases'''
     print(f'{mode} initialisation')
     Ws = []
     bs = []
@@ -369,6 +358,7 @@ def InitialiseParameters(dims, mode="Standard"):
     parameters = {"W": Ws, "b" : bs, "gamma" : gammas, "beta" : betas}
     return parameters
 
+'''Performs a learning episode using mini batches'''
 def MiniBatchGD(X, Y, parameters, lam, n_batch, n_epochs):
     augment = True
     if augment:
@@ -463,9 +453,9 @@ def MiniBatchGD(X, Y, parameters, lam, n_batch, n_epochs):
         #'''
     return parameters, res, stats
 
+'''Creates and stores mirror and translated images for each training data. These will be called on at random during training.
+Each image has 7*7*2 = 98 variants (7 tx, 7 ty, 2 for flipped states'''
 def DataAugmentation(X):
-    '''Creates and stores mirror and translated images for each training data. These will be called on at random during training.'''
-    '''Each image has 7*7*2 = 98 variants (7 tx, 7 ty, 2 for flipped states'''
     flip = [X, MirrorImages(X)]
     variants = []
     for i in range(2):
@@ -474,14 +464,14 @@ def DataAugmentation(X):
                 variants.append(ShiftImages(flip[i], 3*tx, 3*ty))
     return np.array(variants)
 
+'''Returns randomly flipped/translated versions of the batch defined by indices'''
 def GetAugmentedBatch(variants, indices):
-    '''Returns randomly flipped/translated versions of the batch defined by indices'''
     versions = np.random.randint(0, 18, indices.shape)
     thing = np.transpose(variants[versions,:,indices])
     return thing
     
+'''Creates vertically flipped versions'''
 def MirrorImages(X):
-    '''Creates vertically flipped versions'''
     aa_32 = [32*x for x in range(32)]
     bb = [31-x for x in range(32)]
     vv = np.matlib.repmat(aa_32, 32, 1)
@@ -492,6 +482,7 @@ def MirrorImages(X):
     mirrored_X = numpy.squeeze(X[inds_flip])
     return mirrored_X
 
+'''Shifts images translationally'''
 def ShiftImages(X, tx, ty):
     aa_32 = [32*x for x in range(32)]
     if(tx < 0):
@@ -526,6 +517,7 @@ def ShiftImages(X, tx, ty):
     shifted_X[inds_fill] = X[inds_xx]
     return shifted_X
 
+'''Grid search for a good lambda value'''
 def FindLambda(lambdas):
     train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y = GetAllData(True)
     val_accs = []
@@ -547,9 +539,7 @@ def FindLambda(lambdas):
     return val_accs
 
 
-#%%
-'''Perform a fine search for lambda'''
-'''
+#%% Cell 1: Perform fine search for lambda
 l_min = -4
 l_max = -3
 zerotoone = np.random.uniform(1.40, 1.90, 30)
@@ -561,22 +551,17 @@ plt.title("Change in validation accuracy for different lambdas")
 plt.xlabel("Lambda")
 plt.ylabel("Validation accuracy (%)")
 plt.show()
-'''
-
-#%%
-'''Sampling the data augmentation functions'''
-'''
+ 
+#%% Cell 2a: Sampling the data augmentation functions
 train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y = GetAllData(False)
 variants = DataAugmentation(train_X)
-#%%
+#%% Cell 2b:
 images = np.array([100, 120, 2, 4, 1, 5, 7, 8, 9, 9])
 thing = GetAugmentedBatch(variants, images)
-montage_images(thing)
-'''
-#%%
-'''Check gradient'''
+montage(thing)
 
-'''
+#%% Cell 3: Check gradient against numerical
+
 train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y = GetAllData(True)
 train_X = train_X[:30,:3]
 train_Y = train_Y[:30,:3]
@@ -600,12 +585,8 @@ for string in ["W", "b", "gamma", "beta"]:
         denom = np.max((0.0001, np.abs(np.sum(an[i])) + np.abs(np.sum(num[i]))))
         print(f"Relative error for {string}_{i+1}: {enum/denom}")
 
-#'''
+#%% Cell 4: Train a network!
 
-#%%
-'''Train a network'''
-
-#'''
 accs = []
 for lam in [0.005]:
     train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y = GetAllData(False)
@@ -625,7 +606,6 @@ for lam in [0.005]:
     
     star_parameters, res, stats = MiniBatchGD(train_X, train_Y, parameters, lam, n_batch, n_epochs)
     
-    #%%
     test_acc = 100*ComputeAccuracy(test_X, test_y, star_parameters, stats)
     print(f"Test accuracy: {test_acc}% with λ = {lam}, batch of {n_batch}, {n_epochs} epochs")
     accs.append(test_acc)
