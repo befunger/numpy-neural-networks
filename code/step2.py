@@ -1,11 +1,13 @@
+'''Step 2: Expands from a single layer neural network to a 2-layer with a hidden layer.
+   Updated gradients, new activation functions, and data augmentation!'''
 import numpy as np
 import numpy.matlib
 import matplotlib.pyplot as plt
 
+''' Loads datasets into numpy arrays'''
 def LoadBatch(filename):
     import pickle
-    """ Copied from the dataset website """
-    with open('C:/KTH/Deep Learning/Datasets/'+filename, 'rb') as fo:
+    with open('C:/KTH/numpy-neural-networks/code/Datasets/'+filename, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     X = np.array(dict[b'data'])
     y = np.array(dict[b'labels'])
@@ -19,8 +21,8 @@ def LoadBatch(filename):
     
     return X, Y, y
 
+'''Fetch the necessary data and labels (y = labels, Y = one hot labels)'''
 def GetAllData(big_batch=False):
-    '''Fetch the necessary data and labels (y = labels, Y = one hot labels)'''
     if(big_batch):
             train_X1, train_Y1, train_y1 = LoadBatch("data_batch_1")
             train_X2, train_Y2, train_y2 = LoadBatch("data_batch_2")
@@ -60,10 +62,8 @@ def GetAllData(big_batch=False):
     
     return train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y
 
-
+'''Display the image for each label in W'''
 def montage(W):
-    
-    """ Display the image for each label in W """
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(2,5)
     for i in range(2):
@@ -74,29 +74,14 @@ def montage(W):
             ax[i][j].imshow(sim, interpolation='nearest')
             ax[i][j].set_title("y="+str(5*i+j + 1))
             ax[i][j].axis('off')
-    plt.show()
-    
-def montage_images(W):
-    
-    """ Display the image for each label in W """
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(2,5)
-    for i in range(2):
-        for j in range(5):
-            im  = W[:,i*5+j].reshape(32,32,3, order='F')
-            sim = (im-np.min(im[:]))/(np.max(im[:])-np.min(im[:]))
-            sim = sim.transpose(1,0,2)
-            ax[i][j].imshow(sim, interpolation='nearest')
-            ax[i][j].set_title("y="+str(5*i+j + 1))
-            ax[i][j].axis('off')
-    plt.show()    
+    plt.show() 
 
+''' Standard definition of the softmax function '''
 def softmax(x):
-    """ Standard definition of the softmax function """
     return np.exp(x) / np.sum(np.exp(x), axis=0)
 
+'''Returns activations h and probabilities p of each'''
 def EvaluateClassifier(X, W1, W2, b1, b2, return_activations = False):
-    '''Returns activations h and probabilities p of each'''
     s1 = np.matmul(W1,X) + b1
     h = np.maximum(s1, 0) # ReLu activation function
     if(return_activations):
@@ -104,8 +89,8 @@ def EvaluateClassifier(X, W1, W2, b1, b2, return_activations = False):
     
     return softmax(np.matmul(W2, h) + b2)
 
+'''Calculates the cost function for a batch of predictions'''
 def ComputeCost(X, Y, W1, W2, b1, b2, lam):
-    '''Calculates the cost function for a batch of predictions'''
     P = EvaluateClassifier(X, W1, W2, b1, b2)
     N = np.size(P,1)
     loss_term = [np.dot(Y[:,i], np.log(P[:,i])) for i in range(N)]
@@ -119,8 +104,8 @@ def ComputeAccuracy(X, y, W1, W2, b1, b2):
     corrects = np.sum((y==guesses).astype(float))
     return corrects / np.size(y, 0)
 
+'''Analytically computes gradients of the parameters W1, W2, b1, b2'''
 def ComputeGradients(X, Y, W1, W2, b1, b2, lam, dropout=False):
-    '''Computes gradients of the parameters W1, W2, b1, b2'''
     nb = np.size(X, 1)
     keepProb = 0.5   # P = 1 - keepProb
     
@@ -155,8 +140,8 @@ def ComputeGradients(X, Y, W1, W2, b1, b2, lam, dropout=False):
     
     return dJ_dW1, dJ_dW2, dJ_db1, dJ_db2
 
+''' Slow but accurate numerical computation to verify the analytical ComputeGradients(). Converted from Matlab code.'''
 def ComputeGradsNumSlow(X, Y, W1, W2, b1, b2, lamda, h):
-    """ Converted from matlab code """
     no1 = W1.shape[0]
     no2 = W2.shape[0]
     d = X.shape[0]
@@ -204,8 +189,8 @@ def ComputeGradsNumSlow(X, Y, W1, W2, b1, b2, lamda, h):
     
     return grad_W1, grad_W2, grad_b1, grad_b2
 
+'''Initialise W1, W2, b1, b2 randomly'''
 def InitialiseParameters(K, d, m):
-    '''Initialise W1, W2, b1, b2'''
     # K = Num of labels
     # d = Size of image
     # m = Hidden nodes
@@ -216,6 +201,7 @@ def InitialiseParameters(K, d, m):
     b2 = 0.01 * np.random.randn(K, 1)
     return W1, W2, b1, b2
 
+'''Performs a learning episode using mini batches'''
 def MiniBatchGD(X, Y, W1, W2, b1, b2, lam, n_batch, n_epochs):
     augment = True
     if augment:
@@ -293,9 +279,9 @@ def MiniBatchGD(X, Y, W1, W2, b1, b2, lam, n_batch, n_epochs):
         #'''
     return W1, W2, b1, b2, res
 
+'''Creates and stores mirror and translated images for each training data. These will be called on at random during training.
+Each image has 7*7*2 = 98 variants (7 tx, 7 ty, 2 for flipped states'''
 def DataAugmentation(X):
-    '''Creates and stores mirror and translated images for each training data. These will be called on at random during training.'''
-    '''Each image has 7*7*2 = 98 variants (7 tx, 7 ty, 2 for flipped states'''
     flip = [X, MirrorImages(X)]
     variants = []
     for i in range(2):
@@ -304,14 +290,14 @@ def DataAugmentation(X):
                 variants.append(ShiftImages(flip[i], 3*tx, 3*ty))
     return np.array(variants)
 
+'''Returns randomly flipped/translated versions of the batch defined by indices'''
 def GetAugmentedBatch(variants, indices):
-    '''Returns randomly flipped/translated versions of the batch defined by indices'''
     versions = np.random.randint(0, 18, indices.shape)
     thing = np.transpose(variants[versions,:,indices])
     return thing
     
+'''Creates vertically flipped image versions'''
 def MirrorImages(X):
-    '''Creates vertically flipped versions'''
     aa_32 = [32*x for x in range(32)]
     bb = [31-x for x in range(32)]
     vv = np.matlib.repmat(aa_32, 32, 1)
@@ -322,6 +308,7 @@ def MirrorImages(X):
     mirrored_X = numpy.squeeze(X[inds_flip])
     return mirrored_X
 
+'''Shifts images translationally'''
 def ShiftImages(X, tx, ty):
     aa_32 = [32*x for x in range(32)]
     if(tx < 0):
@@ -356,6 +343,7 @@ def ShiftImages(X, tx, ty):
     shifted_X[inds_fill] = X[inds_xx]
     return shifted_X
 
+'''Grid search for a good lambda value'''
 def FindLambda(lambdas):
     train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y = GetAllData(True)
     val_accs = []
@@ -376,10 +364,10 @@ def FindLambda(lambdas):
     
     return val_accs
 
-#%%
-'''Testing parameters and gradients'''
+#%% Cell 1: Testing parameters and analytical gradient against numerical
+train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y = GetAllData(True)
+lam = 0.0001
 
-'''
 batch_X = train_X[0:20, 0:1]
 batch_Y = train_Y[:, 0:1]
 batch_y = train_y[0:1]
@@ -413,10 +401,8 @@ enum = np.abs(np.sum(grad_b2 - num_grad_b2))
 denom = np.max((0.0001, np.abs(np.sum(grad_b2)) + np.abs(np.sum(num_grad_b2))))
 print(f"Relative error in b2 gradient: {enum/denom}")
 
-'''
-#%%
-'''Sanity check overfitting the loss'''
-'''
+#%% Cell 2: Sanity check overfitting the loss
+
 batch_X = train_X[:, 0:100]
 batch_Y = train_Y[:, 0:100]
 batch_y = train_y[0:100]
@@ -428,7 +414,7 @@ W1, W2, b1, b2 = InitialiseParameters(K, d, m)
 lam = 0
 n_epochs = 100
 n_batch = 10
-W1_star, W2_star, b1_star, b2_star, res = TestMiniBatchGD(batch_X, batch_Y, W1, W2, b1, b2, lam, n_batch, n_epochs, batch_y)
+W1_star, W2_star, b1_star, b2_star, res = MiniBatchGD(batch_X, batch_Y, W1, W2, b1, b2, lam, n_batch, n_epochs, batch_y)
 
 tl = res[1]
 x = [i+1 for i in range(n_epochs)]
@@ -438,11 +424,10 @@ plt.xlabel("Epoch")
 plt.xlim(0, n_epochs+1)
 plt.legend()
 plt.show()
-'''
 
-#%%
-'''Perform a fine search for lambda'''
-'''
+
+#%% Cell 3: Perform a fine search for lambda
+
 l_min = -4
 l_max = -3
 zerotoone = np.random.uniform(1.40, 1.90, 30)
@@ -454,22 +439,18 @@ plt.title("Change in validation accuracy for different lambdas")
 plt.xlabel("Lambda")
 plt.ylabel("Validation accuracy (%)")
 plt.show()
-'''
 
-#%%
-'''Sampling the data augmentation functions'''
-'''
+#%% Cell 4: Sampling the data augmentation functions
+
 train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y = GetAllData(False)
 variants = DataAugmentation(train_X)
 #%%
 images = np.array([100, 120, 2, 4, 1, 5, 7, 8, 9, 9])
 thing = GetAugmentedBatch(variants, images)
-montage_images(thing)
-'''
-#%%
-'''Train a network'''
+montage(thing)
 
-#'''
+#%% Cell 5: Train a network!
+
 train_X, train_Y, train_y, val_X, val_Y, val_y, test_X, test_Y, test_y = GetAllData(True)
 train_X = train_X[:,:1000]
 train_Y = train_Y[:,:1000]
@@ -503,7 +484,6 @@ plt.xlabel("Step")
 plt.xlim(0, 100*len(tc)+1)
 plt.legend()
 plt.show()
-#'''
 
 '''
 plt.plot(x, tc, label="Cost (Training)")

@@ -1,4 +1,6 @@
-'''Step 1 in learning to design neural networks from scratch. Introduces many essential functions for neural networks like '''
+'''Step 1 in learning to design neural networks from scratch. 
+   Introduces many essential functions for neural networks like activation functions,
+   loading data, evaluating network, calculating the loss gradient, performing batch GD'''
 
 import numpy as np
 import numpy.matlib 
